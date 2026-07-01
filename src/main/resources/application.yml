@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: url-shortener-service
+
+  cassandra:
+    keyspace-name: url_shortener
+    contact-points: localhost
+    port: 9042
+    local-datacenter: datacenter1
+    schema-action: CREATE_IF_NOT_EXISTS
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 2
+
+app:
+  base-url: http://localhost:8080
+  short-code:
+    length: 7
+  redis:
+    ttl-hours: 24
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.example.urlshortener: DEBUG
+    org.springframework.data.cassandra: INFO
+    org.springframework.data.redis: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/url-shortener-service.log
