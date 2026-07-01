@@ -293,9 +293,10 @@ All configuration is in `src/main/resources/application.yml`.
 
 ## Short Code Generation
 
-Short codes are generated using **SHA-256 hashing** of the original URL combined with a fixed salt string `urlshortener#2024$salt!`. The resulting hash bytes are mapped to a 62-character alphanumeric alphabet to produce a deterministic 7-character code.
-
-**Collision Resolution:** If the generated code already exists, up to 5 suffix-based retries are attempted before falling back to a cryptographically random code.
+Short codes are generated using **SHA-256 hashing** of the original URL combined with a fixed salt.
+The resulting hash bytes are mapped to a 62-character alphanumeric alphabet to produce a deterministic 7-character code.
+**Collision Resolution:** If the generated code already exists,
+up to 5 suffix-based retries are attempted before falling back to a cryptographically random code.
 
 ---
 
