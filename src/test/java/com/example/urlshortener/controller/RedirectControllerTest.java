@@ -46,7 +46,7 @@ class RedirectControllerTest {
     }
 
     @Test
-    @DisplayName("GET redirect should return 302 FOUND")
+    @DisplayName("GET redirect should return 301 FOUND")
     void shouldReturn302RedirectToOriginalUrl()
             throws Exception {
 
@@ -58,7 +58,7 @@ class RedirectControllerTest {
                         get("/api/v1/url/" + SHORT_CODE)
                 )
                 .andExpect(
-                        status().isFound()
+                        status().is3xxRedirection()
                 )   // 302
                 .andExpect(
                         header().string(

@@ -16,10 +16,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UrlCacheService Unit Tests")
@@ -38,10 +35,12 @@ class UrlCacheServiceTest {
     private final String ORIGINAL_URL = "https://www.google.com";
     private final String CACHE_KEY = "url:" + SHORT_CODE;
 
+
     @BeforeEach
     void setUp() {
         urlCacheService = new UrlCacheServiceImpl(redisTemplate, TTL);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(redisTemplate.opsForValue())
+                .thenReturn(valueOperations);
     }
 
     @Test
