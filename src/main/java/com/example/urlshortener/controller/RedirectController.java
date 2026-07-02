@@ -28,7 +28,7 @@ public class RedirectController {
      * with HTTP 302 FOUND. Checks Redis cache first, then falls back to Cassandra.
      *
      * @param code the short code to resolve
-     * @return HTTP 302 redirect to the original URL
+     * @return HTTP 301 redirect to the original URL
      */
     @GetMapping("/{code}")
     public ResponseEntity<Void> redirect(@PathVariable String code) {
