@@ -124,7 +124,7 @@ GET /{code}
 - Checks Redis cache first (cache-aside pattern)
 - Falls back to Cassandra on cache miss
 - Increments click count on each visit
-- Returns `302 FOUND` with `Location` header to original URL
+- Returns `301 FOUND` with `Location` header to original URL
 - Returns `404 NOT FOUND` if code doesn't exist
 
 ---
@@ -187,8 +187,7 @@ Check Redis (url:{code})
 
 ## Correlation ID Tracing
 
-Every request is assigned a unique `correlationId` injected into SLF4J MDC.
-- If the client sends `X-Correlation-Id` header, that value is used.
+Every request is assigned a unique `correlationId` injected into SLF4J MDC
 - Otherwise, a UUID is auto-generated.
 - The correlation ID appears in all log lines and is returned in the `X-Correlation-Id` response header and in error response bodies.
 
@@ -197,7 +196,7 @@ Every request is assigned a unique `correlationId` injected into SLF4J MDC.
 ## Database Schema (Cassandra)
 
 ```cql
-REATE KEYSPACE IF NOT EXISTS url_shortener
+CREATE KEYSPACE IF NOT EXISTS url_shortener
     WITH replication = {
         'class': 'SimpleStrategy',
         'replication_factor': 1

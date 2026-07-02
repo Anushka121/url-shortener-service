@@ -60,6 +60,7 @@ public class ShortCodeGenerator {
     public String generateRandom() {
         StringBuilder shortCode = new StringBuilder();
         for (int i = 0; i < SHORT_CODE_LENGTH; i++) {
+            // change so // confirmation - incremental +salt ( collision and unique)
             int index = (int) (Math.random() * ALPHANUMERIC.length());
             shortCode.append(ALPHANUMERIC.charAt(index));
         }

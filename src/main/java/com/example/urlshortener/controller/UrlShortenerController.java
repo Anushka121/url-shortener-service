@@ -1,5 +1,6 @@
 package com.example.urlshortener.controller;
 
+import com.example.urlshortener.config.AppConfig;
 import com.example.urlshortener.dto.ShortenUrlRequest;
 import com.example.urlshortener.dto.ShortenUrlResponse;
 import com.example.urlshortener.dto.UrlStatsResponse;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/url")
+@RequestMapping(AppConfig.SHORT_URL)
 public class UrlShortenerController {
 
     private final UrlShortenerService urlShortenerService;
@@ -33,7 +34,7 @@ public class UrlShortenerController {
      * @param request the shorten URL request containing original URL and optional alias
      * @return HTTP 201 CREATED with the shortened URL response
      */
-    @PostMapping("/shorten")
+    @PostMapping(AppConfig.SHORTEN)
     public ResponseEntity<ShortenUrlResponse> shortenUrl(@Valid @RequestBody ShortenUrlRequest request) {
         log.info("POST /api/v1/url/shorten - received shorten request - correlationId: {}", MDC.get("correlationId"));
         ShortenUrlResponse response = urlShortenerService.shortenUrl(request);
@@ -46,7 +47,7 @@ public class UrlShortenerController {
      * @param code the short code to look up
      * @return HTTP 200 OK with the stats response
      */
-    @GetMapping("/stats/{code}")
+    @GetMapping(AppConfig.ANALYTICS)
     public ResponseEntity<UrlStatsResponse> getStats(@PathVariable String code) {
         log.info("GET /api/v1/url/stats/{} - received stats request - correlationId: {}", code, MDC.get("correlationId"));
         UrlStatsResponse response = urlShortenerService.getStats(code);

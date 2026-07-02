@@ -1,5 +1,6 @@
 package com.example.urlshortener.controller;
 
+import com.example.urlshortener.config.AppConfig;
 import com.example.urlshortener.service.UrlShortenerService;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -15,7 +16,7 @@ import java.net.URI;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/url")
+@RequestMapping(AppConfig.SHORT_URL)
 public class RedirectController {
 
     private final UrlShortenerService urlShortenerService;
@@ -25,12 +26,12 @@ public class RedirectController {
     }
     /**
      * Resolves a short code to its original URL and redirects the client
-     * with HTTP 302 FOUND. Checks Redis cache first, then falls back to Cassandra.
+     * with HTTP 301 FOUND. Checks Redis cache first, then falls back to Cassandra.
      *
      * @param code the short code to resolve
      * @return HTTP 301 redirect to the original URL
      */
-    @GetMapping("/{code}")
+    @GetMapping(AppConfig.CODE)
     public ResponseEntity<Void> redirect(@PathVariable String code) {
         log.info("GET /{} - redirect request received - correlationId: {}", code, MDC.get("correlationId"));
 
@@ -40,6 +41,6 @@ public class RedirectController {
         headers.setLocation(URI.create(originalUrl));
 
         log.info("Redirecting code '{}' to '{}' - correlationId: {}", code, originalUrl, MDC.get("correlationId"));
-        return ResponseEntity.status(HttpStatus.FOUND).headers(headers).build();
+        return ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY).headers(headers).build();
     }
 }
