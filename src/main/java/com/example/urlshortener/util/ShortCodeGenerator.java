@@ -76,7 +76,7 @@ public class ShortCodeGenerator {
      * @param suffix a numeric suffix to differentiate the code
      * @return a 7-character alphanumeric short code
      */
-    public String generateWithSuffix(String url, int suffix) {
+    public String generateWithSuffix(String url, long suffix) {
         return generate(url + suffix);
     }
 }

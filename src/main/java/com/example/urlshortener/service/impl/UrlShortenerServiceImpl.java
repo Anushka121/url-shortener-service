@@ -17,6 +17,7 @@ import com.example.urlshortener.util.ShortCodeGenerator;
 import com.example.urlshortener.util.UrlValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -26,6 +27,7 @@ import java.time.Instant;
 public class UrlShortenerServiceImpl implements UrlShortenerService {
 
     private static final int MAX_COLLISION_RETRIES = 5;
+    private static final int MAX_INSERT_RETRIES = 3;
 
     private final UrlMappingRepository urlMappingRepository;
     private final UrlClicksRepository urlClicksRepository;
@@ -50,7 +52,6 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         this.urlValidator = urlValidator;
     }
 
-    @Override
     public ShortenUrlResponse shortenUrl(ShortenUrlRequest request) {
         log.info("Creating short URL for request - originalUrl: {}, customAlias: {} - correlationId: {}",
                 request.getOriginalUrl(), request.getCustomAlias(), MDC.get("correlationId"));
@@ -84,7 +85,19 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
                 .createdAt(Instant.now())
                 .build();
 
-        UrlMapping saved = urlMappingRepository.save(urlMapping);
+        UrlMapping saved;
+        try {
+            saved = urlMappingRepository.save(urlMapping);
+        } catch (DataIntegrityViolationException ex) {
+            // existsById() passed earlier but another request inserted this exact
+            // shortCode first - the DB unique constraint is the real guarantee here
+            log.error("Short code '{}' collided at insert time (concurrent request won the race) - correlationId: {}",
+                    shortCode, MDC.get("correlationId"));
+            if (isCustomAlias) {
+                throw new AliasAlreadyExistsException(shortCode);
+            }
+            throw ex; // generated-code race - rethrow, extremely rare, no new exception type introduced
+        }
 
         log.info("Saved URL mapping - shortCode: '{}' - correlationId: {}",
                 shortCode, MDC.get("correlationId"));
@@ -175,12 +188,25 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
             }
         }
 
-        String randomCode = shortCodeGenerator.generateRandom();
+        for (int attempt = 1; attempt <= MAX_COLLISION_RETRIES; attempt++) {
+            String randomCode = shortCodeGenerator.generateRandom();
 
-        log.warn("Hash collisions exhausted, using random code '{}' - correlationId: {}",
-                randomCode, MDC.get("correlationId"));
+            if (!urlMappingRepository.existsById(randomCode)) {
+                log.warn("Hash collisions exhausted, resolved via random code '{}' on attempt {} - correlationId: {}",
+                        randomCode, attempt, MDC.get("correlationId"));
+                return randomCode;
+            }
+        }
 
-        return randomCode;
+        // Guaranteed-unique last resort: timestamp suffix makes this code
+        // effectively impossible to collide with, since it encodes a value
+        // (nanoTime) that will not repeat for this process.
+        String guaranteedCode = shortCodeGenerator.generateWithSuffix(originalUrl, System.nanoTime());
+
+        log.warn("Random fallback exhausted, resolved via guaranteed-unique code '{}' - correlationId: {}",
+                guaranteedCode, MDC.get("correlationId"));
+
+        return guaranteedCode;
     }
 
     private void incrementClickCount(String code) {

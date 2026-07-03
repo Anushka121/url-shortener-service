@@ -36,7 +36,7 @@ public class UrlShortenerController {
      */
     @PostMapping(AppConfig.SHORTEN)
     public ResponseEntity<ShortenUrlResponse> shortenUrl(@Valid @RequestBody ShortenUrlRequest request) {
-        log.info("POST /api/v1/url/shorten - received shorten request - correlationId: {}", MDC.get("correlationId"));
+        log.info("POST Shorten - received shorten request - correlationId: {}", MDC.get("correlationId"));
         ShortenUrlResponse response = urlShortenerService.shortenUrl(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -49,7 +49,7 @@ public class UrlShortenerController {
      */
     @GetMapping(AppConfig.ANALYTICS)
     public ResponseEntity<UrlStatsResponse> getStats(@PathVariable String code) {
-        log.info("GET /api/v1/url/stats/{} - received stats request - correlationId: {}", code, MDC.get("correlationId"));
+        log.info("GET Analytics {} - received stats request - correlationId: {}", code, MDC.get("correlationId"));
         UrlStatsResponse response = urlShortenerService.getStats(code);
         return ResponseEntity.ok(response);
     }
