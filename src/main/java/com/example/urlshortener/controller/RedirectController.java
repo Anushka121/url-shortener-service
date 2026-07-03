@@ -16,7 +16,7 @@ import java.net.URI;
 
 @Slf4j
 @RestController
-@RequestMapping(AppConfig.SHORT_URL)
+@RequestMapping()
 public class RedirectController {
 
     private final UrlShortenerService urlShortenerService;

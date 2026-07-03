@@ -1,83 +1,176 @@
 # URL Shortener Service
 
-A production-grade URL Shortener microservice built with **Java 17**, **Spring Boot 3.x**, **Cassandra**, and **Redis** — similar in design to Bitly.
+A production-grade URL Shortener microservice built with **Java 17**, **Spring Boot 3.x**, **Apache Cassandra**, and **Redis**, inspired by systems such as Bitly.
 
 ---
 
 ## Tech Stack
 
-| Layer          | Technology                          |
-|----------------|-------------------------------------|
-| Language       | Java 17                             |
-| Framework      | Spring Boot 3.2.x                   |
-| Build Tool     | Gradle                              |
-| Primary DB     | Apache Cassandra 4.1                |
-| Cache          | Redis 7.2                           |
-| Logging        | SLF4J + Logback with MDC tracing    |
-| Testing        | JUnit 5 + Mockito                   |
-| Containerization | Docker + Docker Compose           |
+| Layer            | Technology                                 |
+| ---------------- | ------------------------------------------ |
+| Language         | Java 17                                    |
+| Framework        | Spring Boot 3.x                            |
+| Build Tool       | Gradle                                     |
+| Primary Database | Apache Cassandra 4.x                       |
+| Cache            | Redis                                      |
+| Logging          | SLF4J + Logback + MDC tracing              |
+| Testing          | JUnit 5 + Mockito                          |
+| Architecture     | Layered Architecture + Cache Aside Pattern |
+
+---
+
+## Features
+
+* Generate shortened URLs from long URLs
+* Support custom aliases for shortened URLs
+* Redirect using short code
+* Redis cache-aside strategy for fast redirects
+* Analytics endpoint for click statistics
+* Click count tracking
+* Global exception handling with structured error responses
+* Correlation ID tracing across requests
+* SHA-256 based deterministic short code generation
+* Collision handling with retry fallback strategy
+* Resilient caching (cache failures do not break application flow)
+
+---
+
+## Installation & Setup
+
+### Prerequisites
+
+Make sure the following are installed:
+
+* Java 17+
+* Gradle 8+
+* Local Apache Cassandra instance
+* Local Redis instance
+
+Verify installation:
+
+```bash
+java -version
+gradle -v
+```
+
+---
+
+## Clone Repository
+
+```bash
+git clone <your-github-repository-url>
+cd url-shortener-service
+```
+
+---
+
+## Running the Project
+
+Run locally:
+
+```bash
+./gradlew bootRun
+```
+
+Build JAR:
+
+```bash
+./gradlew bootJar
+```
+
+Run generated JAR:
+
+```bash
+java -jar build/libs/url-shortener-service.jar
+```
+
+---
+
+## Running Tests
+
+Execute all tests:
+
+```bash
+./gradlew test
+```
+
+Current test coverage includes:
+
+* Controller tests using MockMvc
+* Service layer tests using Mockito
+* Utility layer tests
+* Exception handling validation
+
+---
+
+## Verify Application
+
+Health check:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "UP",
+  "components": {
+    "cassandra": {
+      "status": "UP",
+      "details": {
+        ... other database details
+      }
+    },
+    "diskSpace": {
+      "status": "UP",
+      "details": {
+        ... system resource details
+      }
+    },
+    "ping": {
+      "status": "UP"
+    },
+    "redis": {
+      "status": "UP",
+      "details": {
+        ... cache server details
+      }
+    }
+  }
+}
+```
 
 ---
 
 ## Project Structure
 
-```
+```text
 url-shortener-service/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/example/urlshortener/
-│   │   │   ├── UrlShortenerServiceApplication.java
 │   │   │   ├── controller/
-│   │   │   │   ├── UrlShortenerController.java   # POST /shorten, GET /stats/{code}
-│   │   │   │   └── RedirectController.java       # GET /{code}
+│   │   │   │   ├── UrlShortenerController.java
+│   │   │   │   └── RedirectController.java
 │   │   │   ├── service/
-│   │   │   │   ├── UrlShortenerService.java      # Interface
-│   │   │   │   ├── UrlCacheService.java          # Interface
+│   │   │   │   ├── UrlShortenerService.java
+│   │   │   │   ├── UrlCacheService.java
 │   │   │   │   └── impl/
-│   │   │   │       ├── UrlShortenerServiceImpl.java
-│   │   │   │       └── UrlCacheServiceImpl.java
 │   │   │   ├── repository/
-│   │   │   │   └── UrlMappingRepository.java
 │   │   │   ├── entity/
-│   │   │   │   └── UrlMapping.java
 │   │   │   ├── dto/
-│   │   │   │   ├── ShortenUrlRequest.java
-│   │   │   │   ├── ShortenUrlResponse.java
-│   │   │   │   ├── UrlStatsResponse.java
-│   │   │   │   └── ErrorResponse.java
 │   │   │   ├── config/
-│   │   │   │   ├── RedisConfig.java
-│   │   │   │   ├── CassandraConfig.java
-│   │   │   │   ├── JacksonConfig.java
-│   │   │   │   └── CorrelationIdFilter.java
 │   │   │   ├── exception/
-│   │   │   │   ├── GlobalExceptionHandler.java
-│   │   │   │   ├── ResourceNotFoundException.java
-│   │   │   │   ├── AliasAlreadyExistsException.java
-│   │   │   │   └── InvalidUrlException.java
 │   │   │   ├── mapper/
-│   │   │   │   └── UrlMappingMapper.java
 │   │   │   └── util/
-│   │   │       ├── ShortCodeGenerator.java
-│   │   │       ├── UrlValidator.java
-│   │   │       └── CorrelationIdGenerator.java
-│   │   └── resources/
-│   │       ├── application.yml
-│   │       └── schema.cql
 │   └── test/
-│       └── java/com/example/urlshortener/
-│           ├── controller/
-│           │   ├── UrlShortenerControllerTest.java
-│           │   └── RedirectControllerTest.java
-│           ├── service/
-│           │   ├── UrlShortenerServiceTest.java
-│           │   └── UrlCacheServiceTest.java
-│           └── util/
-│               └── ShortCodeGeneratorTest.java
+│       ├── controller/
+│       ├── service/
+│       └── util/
 ├── build.gradle
 ├── settings.gradle
-├── Dockerfile
-├── docker-compose.yml
 └── README.md
 ```
 
@@ -85,14 +178,14 @@ url-shortener-service/
 
 ## API Endpoints
 
-### 1. Shorten URL
+## 1. Shorten URL
 
-```
+```http
 POST /api/v1/url/shorten
-Content-Type: application/json
 ```
 
-**Request Body:**
+Request:
+
 ```json
 {
   "originalUrl": "https://www.google.com/very/long/path",
@@ -100,7 +193,8 @@ Content-Type: application/json
 }
 ```
 
-**Success Response — 201 CREATED:**
+Success Response:
+
 ```json
 {
   "shortCode": "google123",
@@ -109,33 +203,41 @@ Content-Type: application/json
 }
 ```
 
-**Error Responses:**
-- `400 BAD REQUEST` — Invalid URL format or blank input
-- `409 CONFLICT` — Custom alias already exists
+Possible Errors:
+
+* 400 BAD REQUEST → Invalid URL format
+* 409 CONFLICT → Alias already exists
 
 ---
 
-### 2. Redirect
+## 2. Redirect
 
-```
+```http
 GET /{code}
 ```
 
-- Checks Redis cache first (cache-aside pattern)
-- Falls back to Cassandra on cache miss
-- Increments click count on each visit
-- Returns `301 FOUND` with `Location` header to original URL
-- Returns `404 NOT FOUND` if code doesn't exist
+Flow:
+
+* Check Redis cache first
+* Fall back to Cassandra on cache miss
+* Increment click count
+* Return redirect response
+
+Responses:
+
+* 301 MOVED PERMANENTLY
+* 404 NOT FOUND
 
 ---
 
-### 3. Analytics / Stats
+## 3. Analytics
 
-```
+```http
 GET /api/v1/url/stats/{code}
 ```
 
-**Success Response — 200 OK:**
+Response:
+
 ```json
 {
   "shortCode": "google123",
@@ -147,163 +249,201 @@ GET /api/v1/url/stats/{code}
 
 ---
 
-## Error Response Format
+## Cache Aside Architecture
 
-All errors follow a consistent structure:
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:00Z",
-  "status": 404,
-  "error": "Not Found",
-  "message": "UrlMapping not found with shortCode: 'abc123'",
-  "path": "/api/v1/url/stats/abc123",
-  "correlationId": "a1b2c3d4-e5f6-..."
-}
-```
-
----
-
-## Cache-Aside Pattern
-
-```
+```text
 GET /{code}
-     │
-     ▼
-Check Redis (url:{code})
-     │
-     ├─── HIT ──► Return original URL immediately
-     │
-     └─── MISS ──► Query Cassandra
-                        │
-                        ├─── Found ──► Cache in Redis (TTL: 24h)
-                        │              Increment click count
-                        │              Return original URL
-                        │
-                        └─── Not Found ──► 404 NOT FOUND
+      │
+      ▼
+Check Redis Cache
+      │
+      ├── HIT → Return original URL
+      │
+      └── MISS → Query Cassandra
+                      │
+                      ├── Found → Cache result
+                      │           Increment clicks
+                      │           Return URL
+                      │
+                      └── Not Found → Return 404
 ```
 
 ---
 
 ## Correlation ID Tracing
 
-Every request is assigned a unique `correlationId` injected into SLF4J MDC
-- Otherwise, a UUID is auto-generated.
-- The correlation ID appears in all log lines and is returned in the `X-Correlation-Id` response header and in error response bodies.
+Each request is assigned a unique correlation ID.
+
+The correlation ID:
+
+* Is stored in MDC
+* Appears in all log entries
+* Returned in response header
+* Included in error responses
+
+Used for request tracing and debugging.
 
 ---
 
-## Database Schema (Cassandra)
+## Error Response Format
 
-```cql
+All errors follow a consistent structure.
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00Z",
+  "status": 404,
+  "error": "Not Found",
+  "message": "UrlMapping not found with shortCode: abc123",
+  "path": "/api/v1/url/stats/abc123",
+  "correlationId": "generated-request-id"
+}
+```
+
+---
+
+## Database Schema
+
+```sql
 CREATE KEYSPACE IF NOT EXISTS url_shortener
-    WITH replication = {
-        'class': 'SimpleStrategy',
-        'replication_factor': 1
-        }
-     AND durable_writes = true;
+WITH replication = {
+    'class': 'SimpleStrategy',
+    'replication_factor': 1
+};
 
 USE url_shortener;
 
 CREATE TABLE IF NOT EXISTS url_mapping (
-    short_code   text PRIMARY KEY,
+    short_code text PRIMARY KEY,
     original_url text,
     custom_alias boolean,
-    created_at   timestamp
+    created_at timestamp
 );
 
 CREATE TABLE IF NOT EXISTS url_clicks (
     short_code text PRIMARY KEY,
     click_count counter
 );
-
 ```
 
 ---
 
-## Running Locally
+## Sample cURL Commands
 
-### Prerequisites
-- Docker & Docker Compose
-- Java 17 (for local development without Docker)
-
-### Start with Docker Compose
+Create short URL:
 
 ```bash
-docker-compose up --build
-```
-
-This will start:
-- **Cassandra** on port `9042`
-- **Redis** on port `6379`
-- **Spring Boot App** on port `8080`
-
-### Run Tests
-
-```bash
-./gradlew test
-```
-
-### Build JAR
-
-```bash
-./gradlew bootJar
-```
-
----
-
-## Sample curl Commands
-
-```bash
-# Shorten a URL
 curl -X POST http://localhost:8080/api/v1/url/shorten \
-  -H "Content-Type: application/json" \
-  -d '{"originalUrl": "https://www.google.com/search?q=spring+boot"}'
+-H "Content-Type: application/json" \
+-d '{"originalUrl":"https://google.com"}'
+```
 
-# Shorten with custom alias
-curl -X POST http://localhost:8080/api/v1/url/shorten \
-  -H "Content-Type: application/json" \
-  -d '{"originalUrl": "https://www.google.com", "customAlias": "google123"}'
+Redirect:
 
-# Redirect (follow redirect)
+```bash
 curl -L http://localhost:8080/google123
+```
 
-# Get stats
+Analytics:
+
+```bash
 curl http://localhost:8080/api/v1/url/stats/google123
-
-# Health check
-curl http://localhost:8080/actuator/health
 ```
 
 ---
 
-## Configuration
+## Short Code Generation Strategy
 
-All configuration is in `src/main/resources/application.yml`.
+Short code generation uses deterministic hashing.
 
-| Property                    | Default              | Description                   |
-|-----------------------------|----------------------|-------------------------------|
-| `app.base-url`              | `http://localhost:8080` | Base URL for shortened links |
-| `app.short-code.length`     | `7`                  | Length of generated short codes |
-| `app.redis.ttl-hours`       | `24`                 | Redis cache TTL in hours       |
-| `spring.cassandra.keyspace-name` | `url_shortener` | Cassandra keyspace            |
+Process:
+
+1. SHA-256 hash original URL
+2. Convert bytes into Base62 character set
+3. Generate fixed-length 7 character short code
+
+Collision Handling:
+
+* Retry with suffix variations
+* Maximum 5 retries
+* Fall back to secure random generation if collision persists
 
 ---
 
-## Short Code Generation
+## Testing Strategy
 
-Short codes are generated using **SHA-256 hashing** of the original URL combined with a fixed salt.
-The resulting hash bytes are mapped to a 62-character alphanumeric alphabet to produce a deterministic 7-character code.
-**Collision Resolution:** If the generated code already exists,
-up to 5 suffix-based retries are attempted before falling back to a cryptographically random code.
+Covered test layers:
+
+### Controller Tests
+
+* Request validation
+* HTTP status code validation
+* Exception handling
+* Redirect behavior
+
+### Service Tests
+
+* URL shortening logic
+* Alias conflict handling
+* Cache lookup behavior
+* Cache fallback logic
+
+### Utility Tests
+
+* Short code generation
+* URL validation logic
+
+Repository tests were intentionally skipped for standard CRUD repositories because they rely on Spring Data generated implementations.
+
+Testing priority was given to business logic layers.
 
 ---
 
 ## Design Principles
 
-- **SOLID** principles throughout
-- **Constructor injection** only — no field injection
-- **Cache-aside pattern** for Redis
-- **Clean architecture** with clear layer separation
-- **Resilient caching** — Redis failures never break core functionality
-- **Structured error responses** with correlation ID tracking
+Architecture decisions followed:
+
+* SOLID principles
+* Constructor injection only
+* Layered architecture
+* Cache aside pattern
+* Separation of concerns
+* Resilient caching strategy
+* Structured exception handling
+* Clean service abstraction
+
+---
+
+## Future Improvements
+
+Planned production-grade enhancements:
+
+* Containerization using Docker and Docker Compose
+* Integration testing using Testcontainers
+* API rate limiting
+* Authentication and authorization
+* Custom expiration time for short URLs
+* Kafka based click event processing
+* Distributed cache clustering
+* Analytics dashboard
+* Multi-region deployment
+
+---
+
+## Learnings From This Project
+
+Concepts implemented and practiced:
+
+* Microservice design principles
+* Distributed caching using Redis
+* Working with Apache Cassandra counters
+* Layered backend architecture
+* Exception handling patterns
+* Request tracing using MDC
+* Unit testing with Mockito and JUnit
+* Designing scalable URL shortening systems
+* Cache aside design pattern
+* Building production-oriented backend services
+
+```
+```

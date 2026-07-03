@@ -56,7 +56,7 @@ class RedirectControllerTest {
                 .thenReturn(ORIGINAL_URL);
 
         mockMvc.perform(
-                        get(AppConfig.SHORT_URL +"/"+ SHORT_CODE)
+                        get("/"+ SHORT_CODE)
                 )
                 .andExpect(
                         status().is3xxRedirection()
@@ -85,7 +85,7 @@ class RedirectControllerTest {
                 );
 
         mockMvc.perform(
-                        get(AppConfig.SHORT_URL +"/"+ "notexist")
+                        get("/"+ "notexist")
                 )
                 .andExpect(
                         status().isNotFound()
