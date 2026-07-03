@@ -49,3 +49,7 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"
   file:
     name: logs/url-shortener-service.log
+
+rate-limit:
+  limit: 3
+  window: 1m

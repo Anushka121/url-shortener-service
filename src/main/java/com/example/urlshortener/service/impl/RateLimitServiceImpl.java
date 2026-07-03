@@ -1,21 +1,27 @@
 package com.example.urlshortener.service.impl;
 
+import com.example.urlshortener.config.RateLimitProperties;
 import com.example.urlshortener.exception.RateLimitExceededException;
 import com.example.urlshortener.service.RateLimitService;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 
 @Service
-@RequiredArgsConstructor
 public class RateLimitServiceImpl implements RateLimitService {
 
-    private static final int MAX_REQUESTS = 3;
-    private static final Duration WINDOW = Duration.ofMinutes(1);
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RateLimitProperties rateLimitProperties;
+
+    public RateLimitServiceImpl(RedisTemplate<String, Object> redisTemplate,
+                                RateLimitProperties rateLimitProperties) {
+        this.redisTemplate = redisTemplate;
+        this.rateLimitProperties = rateLimitProperties;
+    }
 
     @Override
     public void validateRateLimit(String clientIp) {
@@ -25,10 +31,10 @@ public class RateLimitServiceImpl implements RateLimitService {
         Long count = redisTemplate.opsForValue().increment(key);
 
         if (count != null && count == 1) {
-            redisTemplate.expire(key, WINDOW);
+            redisTemplate.expire(key, rateLimitProperties.getWindow());
         }
 
-        if (count != null && count > MAX_REQUESTS) {
+        if (count != null && count > rateLimitProperties.getLimit()) {
             throw new RateLimitExceededException(
                     "Rate limit exceeded. Try again later."
             );
