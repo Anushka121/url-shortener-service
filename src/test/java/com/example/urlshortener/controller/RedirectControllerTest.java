@@ -1,5 +1,6 @@
 package com.example.urlshortener.controller;
 
+import com.example.urlshortener.config.AppConfig;
 import com.example.urlshortener.exception.GlobalExceptionHandler;
 import com.example.urlshortener.exception.ResourceNotFoundException;
 import com.example.urlshortener.service.UrlShortenerService;
@@ -47,7 +48,7 @@ class RedirectControllerTest {
 
     @Test
     @DisplayName("GET redirect should return 301 FOUND")
-    void shouldReturn302RedirectToOriginalUrl()
+    void shouldReturn301RedirectToOriginalUrl()
             throws Exception {
 
         when(urlShortenerService
@@ -55,11 +56,11 @@ class RedirectControllerTest {
                 .thenReturn(ORIGINAL_URL);
 
         mockMvc.perform(
-                        get("/api/v1/url/" + SHORT_CODE)
+                        get(AppConfig.SHORT_URL +"/"+ SHORT_CODE)
                 )
                 .andExpect(
                         status().is3xxRedirection()
-                )   // 302
+                )   // 301
                 .andExpect(
                         header().string(
                                 "Location",
@@ -84,10 +85,12 @@ class RedirectControllerTest {
                 );
 
         mockMvc.perform(
-                        get("/api/v1/url/notexist")
+                        get(AppConfig.SHORT_URL +"/"+ "notexist")
                 )
                 .andExpect(
                         status().isNotFound()
                 );
     }
+
+
 }

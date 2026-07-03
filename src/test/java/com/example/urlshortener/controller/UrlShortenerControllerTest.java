@@ -1,5 +1,6 @@
 package com.example.urlshortener.controller;
 
+import com.example.urlshortener.config.AppConfig;
 import com.example.urlshortener.dto.ShortenUrlRequest;
 import com.example.urlshortener.dto.ShortenUrlResponse;
 import com.example.urlshortener.dto.UrlStatsResponse;
@@ -132,7 +133,7 @@ class UrlShortenerControllerTest {
                 );
 
         mockMvc.perform(
-                        post("/api/v1/url/shorten")
+                        post(AppConfig.SHORT_URL+AppConfig.SHORTEN)
                                 .contentType(
                                         MediaType.APPLICATION_JSON
                                 )
@@ -157,7 +158,7 @@ class UrlShortenerControllerTest {
                         .build();
 
         mockMvc.perform(
-                        post("/api/v1/url/shorten")
+                        post(AppConfig.SHORT_URL+AppConfig.SHORTEN)
                                 .contentType(
                                         MediaType.APPLICATION_JSON
                                 )
@@ -187,9 +188,7 @@ class UrlShortenerControllerTest {
         when(urlShortenerService.getStats(SHORT_CODE))
                 .thenReturn(stats);
 
-        mockMvc.perform(
-                        get("/api/v1/url/stats/" + SHORT_CODE)
-                )
+        mockMvc.perform( get(AppConfig.SHORT_URL + AppConfig.ANALYTICS, SHORT_CODE))
                 .andExpect(status().isOk())
                 .andExpect(
                         jsonPath(
@@ -219,9 +218,7 @@ class UrlShortenerControllerTest {
                         )
                 );
 
-        mockMvc.perform(
-                        get("/api/v1/url/stats/unknown")
-                )
+        mockMvc.perform( get(AppConfig.SHORT_URL + AppConfig.ANALYTICS, "unknown"))
                 .andExpect(status().isNotFound());
     }
 }
