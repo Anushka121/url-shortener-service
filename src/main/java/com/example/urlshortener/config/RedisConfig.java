@@ -64,4 +64,23 @@ public class RedisConfig {
     public Duration redisTtl() {
         return Duration.ofHours(redisTtlHours);
     }
+
+
+    @Bean
+    public RedisTemplate<String, Object> objectRedisTemplate(
+            RedisConnectionFactory connectionFactory
+    ) {
+
+        RedisTemplate<String, Object> template =
+                new RedisTemplate<>();
+
+        template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(new StringRedisSerializer());
+
+        template.afterPropertiesSet();
+
+        return template;
+    }
+
+
 }

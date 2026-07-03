@@ -32,6 +32,7 @@ A production-grade URL Shortener microservice built with **Java 17**, **Spring B
 * SHA-256 based deterministic short code generation
 * Collision handling with retry fallback strategy
 * Resilient caching (cache failures do not break application flow)
+* API rate limiting using Redis (per IP-based request throttling)
 
 ---
 
@@ -152,19 +153,16 @@ url-shortener-service/
 │   ├── main/
 │   │   ├── java/com/example/urlshortener/
 │   │   │   ├── controller/
-│   │   │   │   ├── UrlShortenerController.java
-│   │   │   │   └── RedirectController.java
 │   │   │   ├── service/
-│   │   │   │   ├── UrlShortenerService.java
-│   │   │   │   ├── UrlCacheService.java
-│   │   │   │   └── impl/
 │   │   │   ├── repository/
 │   │   │   ├── entity/
 │   │   │   ├── dto/
 │   │   │   ├── config/
 │   │   │   ├── exception/
+│   │   │   ├── filter/
 │   │   │   ├── mapper/
 │   │   │   └── util/
+│   │
 │   └── test/
 │       ├── controller/
 │       ├── service/
@@ -253,19 +251,19 @@ Response:
 
 ```text
 GET /{code}
-      │
-      ▼
-Check Redis Cache
-      │
-      ├── HIT → Return original URL
-      │
-      └── MISS → Query Cassandra
-                      │
-                      ├── Found → Cache result
-                      │           Increment clicks
-                      │           Return URL
-                      │
-                      └── Not Found → Return 404
+     │
+     ▼
+Check Redis (url:{code})
+     │
+     ├─── HIT ──► Return original URL immediately
+     │
+     └─── MISS ──► Query Cassandra
+                        │
+                        ├─── Found ──► Cache in Redis (TTL: 24h)
+                        │              Increment click count
+                        │              Return original URL
+                        │
+                        └─── Not Found ──► 404 NOT FOUND
 ```
 
 ---
@@ -418,10 +416,48 @@ Testing priority was given to business logic layers.
 
 ---
 
+# API Rate Limiting
+
+## Current Implementation
+
+- Rate limiting per IP
+- Redis-based counter
+- Fixed window algorithm
+- Returns HTTP `429 Too Many Requests` when limit is exceeded
+
+---
+
+## Testing Config
+
+- **Limit:** 3 requests/min per IP
+
+---
+
+## Flow
+
+Incoming Request → IP extracted → Redis counter increment → validate → allow / block
+
+---
+
+## Error Response
+
+```json
+{
+  "status": 429,
+  "error": "Too Many Requests",
+  "message": "Rate limit exceeded. Try again later."
+}
+
+```
+# Testing Strategy - 
+Controller tests
+Service tests
+Utility tests
+
+⚠ Note: Rate limiting test cases are not implemented yet (planned for next steps).
+
 ## Design Principles
-
 Architecture decisions followed:
-
 * SOLID principles
 * Constructor injection only
 * Layered architecture
@@ -439,9 +475,9 @@ Planned production-grade enhancements:
 
 * Containerization using Docker and Docker Compose
 * Integration testing using Testcontainers
-* API rate limiting
+* API rate limiting with testcases
 * Authentication and authorization
-* Custom expiration time for short URLs
+* Custom/Configurable expiration time for short URLs
 * Kafka based click event processing
 * Distributed cache clustering
 * Analytics dashboard
@@ -452,17 +488,16 @@ Planned production-grade enhancements:
 ## Learnings From This Project
 
 Concepts implemented and practiced:
-
 * Microservice design principles
 * Distributed caching using Redis
 * Working with Apache Cassandra counters
 * Layered backend architecture
 * Exception handling patterns
 * Request tracing using MDC
-* Unit testing with Mockito and JUnit
+* Unit testing with JUnit and Mockito
 * Designing scalable URL shortening systems
 * Cache aside design pattern
+* API rate limiting concepts
 * Building production-oriented backend services
 
-```
-```
+

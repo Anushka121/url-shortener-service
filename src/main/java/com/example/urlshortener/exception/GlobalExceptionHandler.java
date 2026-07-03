@@ -118,4 +118,34 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
+
+
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(
+            RateLimitExceededException ex,
+            HttpServletRequest request
+    ) {
+
+        log.warn(
+                "Rate limit exceeded for IP '{}' on path '{}' - correlationId: {}",
+                request.getRemoteAddr(),
+                request.getRequestURI(),
+                MDC.get("correlationId")
+        );
+
+        ErrorResponse error = ErrorResponse.builder()
+                .status(429)
+                .error("Too Many Requests")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .correlationId(MDC.get("correlationId"))
+                .build();
+
+        return ResponseEntity.status(429).body(error);
+    }
+
+
+
+
 }
