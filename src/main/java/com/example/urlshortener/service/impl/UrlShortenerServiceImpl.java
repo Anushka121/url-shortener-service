@@ -27,7 +27,7 @@ import java.time.Instant;
 public class UrlShortenerServiceImpl implements UrlShortenerService {
 
     private static final int MAX_COLLISION_RETRIES = 5;
-    private static final int MAX_INSERT_RETRIES = 3;
+
 
     private final UrlMappingRepository urlMappingRepository;
     private final UrlClicksRepository urlClicksRepository;

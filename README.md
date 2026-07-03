@@ -354,19 +354,38 @@ curl http://localhost:8080/api/v1/url/stats/google123
 
 ## Short Code Generation Strategy
 
-Short code generation uses deterministic hashing.
+Short code generation follows a multi-stage collision resolution strategy designed for deterministic generation while ensuring uniqueness.
 
-Process:
+### Generation Process
 
-1. SHA-256 hash original URL
-2. Convert bytes into Base62 character set
-3. Generate fixed-length 7 character short code
+1. Generate a deterministic short code using **SHA-256 hashing** of the original URL
+2. Convert hash bytes into a **Base62 alphanumeric representation**
+3. Produce a fixed-length **7 character short code**
 
-Collision Handling:
+### Collision Resolution Strategy
 
-* Retry with suffix variations
-* Maximum 5 retries
-* Fall back to secure random generation if collision persists
+If the generated code already exists:
+
+**Stage 1 — Deterministic Retry**
+
+* Regenerate code using suffix-based variations of the original URL
+* Retry up to **5 attempts**
+
+**Stage 2 — Random Fallback**
+
+* Generate cryptographically random short codes
+* Retry up to **5 attempts**
+
+**Stage 3 — Guaranteed Unique Fallback**
+
+* Generate a final code using a high-resolution timestamp (`nanoTime`) based suffix
+* Provides a near-guaranteed unique last-resort fallback
+
+This approach balances:
+
+* Deterministic generation for identical URLs
+* Collision safety
+* High availability under rare collision scenarios
 
 ---
 
