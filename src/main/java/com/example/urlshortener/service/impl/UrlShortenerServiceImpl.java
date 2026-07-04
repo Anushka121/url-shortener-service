@@ -26,8 +26,7 @@ import java.time.Instant;
 @Service
 public class UrlShortenerServiceImpl implements UrlShortenerService {
 
-    private static final int MAX_COLLISION_RETRIES = 5;
-
+    private static final int RANDOM_FALLBACK_RETRIES = 5;
 
     private final UrlMappingRepository urlMappingRepository;
     private final UrlClicksRepository urlClicksRepository;
@@ -75,7 +74,7 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
                 throw new AliasAlreadyExistsException(shortCode);
             }
         } else {
-            shortCode = resolveUniqueShortCode(request.getOriginalUrl());
+            shortCode = resolveUniqueShortCode();
         }
 
         UrlMapping urlMapping = UrlMapping.builder()
@@ -89,14 +88,19 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         try {
             saved = urlMappingRepository.save(urlMapping);
         } catch (DataIntegrityViolationException ex) {
-            // existsById() passed earlier but another request inserted this exact
-            // shortCode first - the DB unique constraint is the real guarantee here
-            log.error("Short code '{}' collided at insert time (concurrent request won the race) - correlationId: {}",
+            // For custom aliases: existsById() passed earlier but another request
+            // inserted this exact alias first - the DB unique constraint is the
+            // real guarantee here.
+            // For generated codes: this should be effectively impossible (Feistel
+            // scramble over Redis-issued IDs is collision-free by construction),
+            // so if this ever fires here it likely means Redis and Postgres have
+            // drifted out of sync (e.g. Redis counter reset/flushed).
+            log.error("Short code '{}' collided at insert time - correlationId: {}",
                     shortCode, MDC.get("correlationId"));
             if (isCustomAlias) {
                 throw new AliasAlreadyExistsException(shortCode);
             }
-            throw ex; // generated-code race - rethrow, extremely rare, no new exception type introduced
+            throw ex;
         }
 
         log.info("Saved URL mapping - shortCode: '{}' - correlationId: {}",
@@ -170,38 +174,39 @@ public class UrlShortenerServiceImpl implements UrlShortenerService {
         return urlMappingMapper.toUrlStatsResponse(urlMapping, clickCount);
     }
 
-    private String resolveUniqueShortCode(String originalUrl) {
-        String shortCode = shortCodeGenerator.generate(originalUrl);
-
-        if (!urlMappingRepository.existsById(shortCode)) {
-            return shortCode;
+    /**
+     * Resolves a unique short code for an auto-generated (non-alias) URL mapping.
+     * Uses the counter-based generator (Redis INCR -> Feistel scramble -> Base62),
+     * which is collision-free by construction, so no existsById() pre-check is
+     * needed here. If Redis itself is unavailable, falls back to random-code
+     * generation with a DB uniqueness check.
+     *
+     * @return a unique short code
+     */
+    private String resolveUniqueShortCode() {
+        try {
+            return shortCodeGenerator.generate();
+        } catch (Exception ex) {
+            log.error("Redis-based ID generation failed, falling back to random code generation: {} - correlationId: {}",
+                    ex.getMessage(), MDC.get("correlationId"), ex);
+            return resolveRandomFallback();
         }
+    }
 
-        for (int attempt = 1; attempt <= MAX_COLLISION_RETRIES; attempt++) {
-            String candidateCode =
-                    shortCodeGenerator.generateWithSuffix(originalUrl, attempt);
-
-            if (!urlMappingRepository.existsById(candidateCode)) {
-                log.debug("Resolved collision on attempt {} for code '{}' - correlationId: {}",
-                        attempt, candidateCode, MDC.get("correlationId"));
-                return candidateCode;
-            }
-        }
-
-        for (int attempt = 1; attempt <= MAX_COLLISION_RETRIES; attempt++) {
+    private String resolveRandomFallback() {
+        for (int attempt = 1; attempt <= RANDOM_FALLBACK_RETRIES; attempt++) {
             String randomCode = shortCodeGenerator.generateRandom();
 
             if (!urlMappingRepository.existsById(randomCode)) {
-                log.warn("Hash collisions exhausted, resolved via random code '{}' on attempt {} - correlationId: {}",
+                log.warn("Resolved via random fallback code '{}' on attempt {} - correlationId: {}",
                         randomCode, attempt, MDC.get("correlationId"));
                 return randomCode;
             }
         }
 
-        // Guaranteed-unique last resort: timestamp suffix makes this code
-        // effectively impossible to collide with, since it encodes a value
-        // (nanoTime) that will not repeat for this process.
-        String guaranteedCode = shortCodeGenerator.generateWithSuffix(originalUrl, System.nanoTime());
+        // Guaranteed-unique last resort: nanoTime suffix makes this effectively
+        // impossible to collide with, since it won't repeat within this process.
+        String guaranteedCode = shortCodeGenerator.generateRandom() + System.nanoTime();
 
         log.warn("Random fallback exhausted, resolved via guaranteed-unique code '{}' - correlationId: {}",
                 guaranteedCode, MDC.get("correlationId"));

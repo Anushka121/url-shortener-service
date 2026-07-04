@@ -27,6 +27,7 @@ app:
   base-url: http://localhost:8080
   short-code:
     length: 7
+    feistel-key: 2654435769
   redis:
     ttl-hours: 24
 
@@ -51,5 +52,7 @@ logging:
     name: logs/url-shortener-service.log
 
 rate-limit:
-  limit: 3
+  limit: 5
   window: 1m
+
+

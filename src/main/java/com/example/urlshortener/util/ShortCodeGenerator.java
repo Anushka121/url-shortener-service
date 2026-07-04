@@ -1,82 +1,66 @@
 package com.example.urlshortener.util;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class ShortCodeGenerator {
 
-    private static final String SALT = "urlshortener#2026$salt!";
     private static final String ALPHANUMERIC = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int SHORT_CODE_LENGTH = 7;
 
-    @Value("${app.short-code.length:7}")
-    private int codeLength;
+    private final RedisIdGenerator redisIdGenerator;
+    private final FeistelCipher feistelCipher;
 
     /**
-     * Generates a deterministic 7-character alphanumeric short code by hashing
-     * the provided URL combined with a fixed salt string using SHA-256.
-     * The resulting hash bytes are mapped to characters from the alphanumeric
-     * character set to produce the short code.
+     * Generates a unique 7-character alphanumeric short code.
+     * Pulls a monotonically increasing ID from Redis (INCR), scrambles it
+     * via a Feistel network to avoid sequential/guessable codes, then
+     * encodes the result in Base62. Collision-free by construction -
+     * the Feistel permutation is bijective, so a unique input ID guarantees
+     * a unique output code. No DB lookup or retry loop needed.
      *
-     * @param url the original URL to hash
      * @return a 7-character alphanumeric short code
      */
-    public String generate(String url) {
-        try {
-            String input = url + SALT;
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-
-            StringBuilder shortCode = new StringBuilder();
-            int length = codeLength > 0 ? codeLength : SHORT_CODE_LENGTH;
-
-            for (int i = 0; i < length; i++) {
-                int index = Math.abs(hashBytes[i % hashBytes.length]) % ALPHANUMERIC.length();
-                shortCode.append(ALPHANUMERIC.charAt(index));
-            }
-
-            log.debug("Generated short code '{}' for URL: {}", shortCode, url);
-            return shortCode.toString();
-
-        } catch (NoSuchAlgorithmException ex) {
-            log.error("SHA-256 algorithm not available, falling back to random generation", ex);
-            return generateRandom();
-        }
+    public String generate() {
+        long id = redisIdGenerator.nextId();
+        long scrambled = feistelCipher.scramble(id);
+        String shortCode = toBase62(scrambled);
+        log.debug("Generated short code '{}' for id={} (scrambled={})", shortCode, id, scrambled);
+        return shortCode;
     }
 
     /**
-     * Generates a random 7-character alphanumeric short code as a fallback
-     * when hashing is unavailable or a collision resolution is needed.
+     * Random 7-character alphanumeric short code, used only as a last-resort
+     * fallback if Redis is unavailable and ID generation fails entirely.
      *
      * @return a random 7-character alphanumeric short code
      */
     public String generateRandom() {
         StringBuilder shortCode = new StringBuilder();
         for (int i = 0; i < SHORT_CODE_LENGTH; i++) {
-            // change so // confirmation - incremental +salt ( collision and unique)
             int index = (int) (Math.random() * ALPHANUMERIC.length());
             shortCode.append(ALPHANUMERIC.charAt(index));
         }
-        log.debug("Generated random short code: {}", shortCode);
+        log.debug("Generated random fallback short code: {}", shortCode);
         return shortCode.toString();
     }
 
-    /**
-     * Generates a unique short code by appending a suffix to resolve hash collisions.
-     * Used when the primary hash-based code is already taken.
-     *
-     * @param url    the original URL
-     * @param suffix a numeric suffix to differentiate the code
-     * @return a 7-character alphanumeric short code
-     */
-    public String generateWithSuffix(String url, long suffix) {
-        return generate(url + suffix);
+    private String toBase62(long value) {
+        StringBuilder sb = new StringBuilder();
+        if (value == 0) {
+            sb.append(ALPHANUMERIC.charAt(0));
+        }
+        while (value > 0) {
+            sb.append(ALPHANUMERIC.charAt((int) (value % ALPHANUMERIC.length())));
+            value /= ALPHANUMERIC.length();
+        }
+        while (sb.length() < SHORT_CODE_LENGTH) {
+            sb.append(ALPHANUMERIC.charAt(0));
+        }
+        return sb.reverse().toString();
     }
 }

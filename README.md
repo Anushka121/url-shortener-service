@@ -352,40 +352,37 @@ curl http://localhost:8080/api/v1/url/stats/google123
 
 ## Short Code Generation Strategy
 
-Short code generation follows a multi-stage collision resolution strategy designed for deterministic generation while ensuring uniqueness.
+Short code generation uses a counter-based approach designed for guaranteed uniqueness with O(1) generation cost, avoiding the retry overhead of probabilistic methods.
 
 ### Generation Process
 
-1. Generate a deterministic short code using **SHA-256 hashing** of the original URL
-2. Convert hash bytes into a **Base62 alphanumeric representation**
-3. Produce a fixed-length **7 character short code**
+1. Obtain a globally unique, monotonically increasing ID via **Redis `INCR`**
+2. Scramble the ID using a **Feistel network** (a reversible, bijective permutation) to eliminate sequential/guessable patterns
+3. Encode the scrambled ID into a **Base62 alphanumeric representation**
+4. Produce a fixed-length **7 character short code**
 
 ### Collision Resolution Strategy
 
-If the generated code already exists:
+Generated codes are **collision-free by construction** — since the Feistel permutation is bijective, a unique input ID guarantees a unique output code. No pre-insert existence check or retry loop is required for the common path.
 
-**Stage 1 — Deterministic Retry**
+**Fallback — Redis Unavailable**
 
-* Regenerate code using suffix-based variations of the original URL
+If Redis itself is unavailable and an ID cannot be issued:
+
+* Generate a cryptographically random short code
+* Check uniqueness against the database
 * Retry up to **5 attempts**
+* If still unresolved, append a high-resolution timestamp (`nanoTime`) suffix as a guaranteed-unique last resort
 
-**Stage 2 — Random Fallback**
+**Defensive Backstop**
 
-* Generate cryptographically random short codes
-* Retry up to **5 attempts**
-
-**Stage 3 — Guaranteed Unique Fallback**
-
-* Generate a final code using a high-resolution timestamp (`nanoTime`) based suffix
-* Provides a near-guaranteed unique last-resort fallback
+A database-level unique constraint on `shortCode` remains as the final authority. If a collision is ever detected at insert time (e.g. Redis and the database drift out of sync), the request fails with a clear error rather than silently overwriting an existing mapping.
 
 This approach balances:
 
-* Deterministic generation for identical URLs
-* Collision safety
-* High availability under rare collision scenarios
-
----
+* Uniqueness guaranteed by construction, not probability
+* No DB round-trip needed before insert for the common (auto-generated) path
+* Graceful degradation if Redis is temporarily unavailable
 
 ## Testing Strategy
 
@@ -484,20 +481,5 @@ Planned production-grade enhancements:
 * Multi-region deployment
 
 ---
-
-## Learnings From This Project
-
-Concepts implemented and practiced:
-* Microservice design principles
-* Distributed caching using Redis
-* Working with Apache Cassandra counters
-* Layered backend architecture
-* Exception handling patterns
-* Request tracing using MDC
-* Unit testing with JUnit and Mockito
-* Designing scalable URL shortening systems
-* Cache aside design pattern
-* API rate limiting concepts
-* Building production-oriented backend services
 
 
